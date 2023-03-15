@@ -1,0 +1,138 @@
+<html>
+  <head>
+    <title>Todo App</title>
+    <style>
+      .hidden {
+          display: none;
+      }
+      ul {
+        list-style: none;
+        padding:0;
+        margin: 0;
+        width: 300px;
+    }
+    li {
+      clear: both;
+    }
+    li button {
+      -webkit-appearance: none;
+      border: none;
+      outline: none;
+      color: red;
+      float: right;
+      cursor: pointer;
+      font-size: 20px;
+    }
+    .lists-wrapper, .todos-wrapper {
+      display: inline-block;
+      vertical-align: top;
+    }
+    </style>
+  </head>
+  <body>
+    <ul id="lists">
+      {% for list in lists %}
+      <li>{{ list.name }}</li>
+      {% endfor %}b         
+    </ul>
+
+    <form id='form'>
+      <input type="text" id="description" name="description" />
+      <input type="submit" value="Create" />
+    </form>
+    <div id='error' class='hidden'>Something went wrong! </div>
+    <ul id='todos'>
+      {% for todo in todos %}
+      <li>
+        <input class = "check-completed" data-id="{{ todo.id }}" type='checkbox'{% if todo.completed %} checked {% endif %}/>{{ todo.description }}
+        <button class = "delbutton" data-id="{{todo.id}}">&cross;</button>
+      </li>
+      {% endfor %}
+    </ul>                             
+    <script>
+      const delbuttons = document.querySelectorAll('.delbutton');
+      for (let i = 0; i < delbuttons.length; i++) {
+        const btn = delbuttons[i];
+        btn.onclick = function(e) {
+          console.log('event', e);
+          const todoId = e.target.dataset['id'];
+          fetch('/todos/' + todoId, {
+            method: 'DELETE'
+          })
+          .then(function() {
+            const item = e.target.parentElement;
+            item.remove();
+        });
+      }
+    }
+      
+      const checkboxes = document.querySelectorAll('.check-completed');
+      for (let i = 0; i < checkboxes.length; i++) {
+        const checkbox = checkboxes[i];
+        checkbox.onchange = function(e) {
+          console.log('event', e);
+          const newCompleted = e.target.checked;
+          const todoId = e.target.dataset['id'];
+          fetch('/todos/' + todoId + '/set-completed', {
+            method: 'POST',
+            body: JSON.stringify({
+              'completed': newCompleted
+            }),
+            headers: {
+              'Content-Type':'application/json'
+            }
+          })
+          .then(function() {
+            document.getElementById('error').className = 'hidden';
+          })
+          .catch(function() {
+            document.getElementById('error').className = '';
+          })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Failed to delete todo item');
+            }
+            return response.json();
+          })
+          .then(todos => {
+            if (todos.error) {
+              throw new Error(todos.error);
+            }
+            document.getElementById('error').className = 'hidden';
+          })
+          .catch(error => {
+            document.getElementById('error').className = '';
+            console.error(error);
+          });
+        }
+      }
+      
+
+      document.getElementById('form').onsubmit = function(e) {
+        e.preventDefault();
+        fetch("/todos/create", {
+          method: 'POST',
+          body: JSON.stringify({
+            'description':document.getElementById('description').value
+          }),
+          headers: {
+            "Content-Type": 'application/json'
+          }
+        })
+        .then(function(response) {
+          return response.json();
+        })
+        .then(function(jsonResponse) {
+          console.log(jsonResponse);
+          const liItem = document.createElement('LI');
+          liItem.innerHTML = jsonResponse['description'];
+          document.getElementById('todos').appendChild(liItem);
+          document.getElementById('error').className = 'hidden';
+        })
+        .catch(function() {
+          document.getElementById('error').className = '';
+        })
+      }
+    </script>
+  </body>
+</html>
